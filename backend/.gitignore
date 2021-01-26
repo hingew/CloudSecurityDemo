@@ -1,0 +1,7 @@
+# Ingore tmp file, used by air
+tmp
+
+# Ignore binary file
+backend
+
+.env
