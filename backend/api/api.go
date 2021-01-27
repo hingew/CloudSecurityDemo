@@ -3,8 +3,8 @@ package api
 import (
 	"backend/config"
 	"backend/database"
-	"backend/middleware"
 	"backend/router"
+	"backend/storage"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
@@ -12,9 +12,10 @@ import (
 
 // API struct
 type API struct {
-	Router *fiber.App
-	DB     *gorm.DB
-	Config *config.Config
+	Router  *fiber.App
+	DB      *gorm.DB
+	Config  *config.Config
+	Storage *storage.Storage
 }
 
 // ErrorResponse error response
@@ -30,6 +31,7 @@ func Init() *API {
 	api.Config = config.Init()
 	api.Router = router.Init(api.Config)
 	api.DB = database.Init(api.Config)
+	api.Storage = storage.Init(api.Config)
 
 	return &api
 }
@@ -46,7 +48,7 @@ func (api *API) Routes() {
 	api.Router.Post("/register", api.Register)
 
 	// Protected Routes
-	protected := api.Router.Use(middleware.Protected(api.Config.JWTSecret))
+	// protected := api.Router.Use(middleware.Protected(api.Config.JWTSecret))
 
-	protected.Post("/upload", api.UploadFile)
+	api.Router.Post("/upload", api.UploadFile)
 }

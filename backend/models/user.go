@@ -15,6 +15,7 @@ type User struct {
 	Username string `gorm:"uniqueIndex;not null" json:"username"`
 	Email    string `gorm:"uniqueIndex;not null" json:"email"`
 	Password string `gorm:"not null" json:"password"`
+	Files    []File
 }
 
 // ProtectedUser struct, to prevent leaking data

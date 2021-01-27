@@ -23,6 +23,14 @@ type Config struct {
 	Port      string `env:"APP_PORT"`
 	Database  Database
 	JWTSecret string `env:"JWT_SECRET"`
+	Storage   Storage
+}
+
+type Storage struct {
+	Endpoint  string
+	AccessKey string
+	SecretKey string
+	Buckets   []string
 }
 
 // Init read the .env file
@@ -41,6 +49,12 @@ func Init() *Config {
 			Db:       os.Getenv("DB_DATABASE"),
 		},
 		JWTSecret: os.Getenv("JWT_SECRET"),
+		Storage: Storage{
+			Endpoint:  os.Getenv("S3_ENDPOINT"),
+			AccessKey: os.Getenv("S3_ACCESS_KEY"),
+			SecretKey: os.Getenv("S3_SECRET_KEY"),
+			Buckets:   []string{"west", "east", "north"},
+		},
 	}
 }
 

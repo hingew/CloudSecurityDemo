@@ -6,6 +6,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+const filePath = "/tmp/%s"
+
 // UploadFile upload a file to bucket
 func (api *API) UploadFile(c *fiber.Ctx) error {
 	file, err := c.FormFile("document")
@@ -14,5 +16,13 @@ func (api *API) UploadFile(c *fiber.Ctx) error {
 		return err
 	}
 
-	return c.SaveFile(file, fmt.Sprintf("./%s", file.Filename))
+	if err := c.SaveFile(file, fmt.Sprintf(filePath, file.Filename)); err != nil {
+		return err
+	}
+
+	if err := api.Storage.SplitAndUpload(file.Filename, api.Config); err != nil {
+		return err
+	}
+
+	return nil
 }

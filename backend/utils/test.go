@@ -96,51 +96,6 @@ func (api *TestAPI) TestEndpoint(test TestEndpoint) {
 	}
 }
 
-// CreateAuthor create a author model for testing
-func (api *TestAPI) CreateAuthor() models.Author {
-	author := models.Author{
-		Name:     "Tim",
-		Username: "tim",
-	}
-
-	api.DB.Create(&author)
-	return author
-}
-
-// CreateTweet create a tweet model for testing
-func (api *TestAPI) CreateTweet() models.Tweet {
-	author := api.CreateAuthor()
-	tweet := models.Tweet{
-		Text:   "Hello world!",
-		Author: &author,
-	}
-
-	api.DB.Create(&tweet)
-	return tweet
-}
-
-// CreateSearch create a search model for testing
-func (api *TestAPI) CreateSearch() models.Search {
-	search := models.Search{
-		Query: "test",
-	}
-
-	api.DB.Create(&search)
-	return search
-}
-
-// CreateList create a list model for testing
-func (api *TestAPI) CreateList(owner models.User) models.List {
-	list := models.List{
-		Name:  "Testing List",
-		Owner: owner,
-	}
-
-	api.DB.Create(&list)
-
-	return list
-}
-
 // CreateUser create a user model for testing
 func (api *TestAPI) CreateUser() models.User {
 	user := models.User{

@@ -22,6 +22,7 @@ func Init(c *config.Config) *gorm.DB {
 	log.Println("Database: Migrate...")
 	db.AutoMigrate(
 		&models.User{},
+		&models.File{},
 	)
 
 	return db
