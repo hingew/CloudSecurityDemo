@@ -2,16 +2,17 @@ package storage
 
 import (
 	"backend/config"
+	"backend/file"
+	"backend/models"
+	"backend/rand"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
-	"math"
 	"os"
-	"strconv"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"gorm.io/gorm"
 )
 
 const filePath = "/tmp/%s"
@@ -57,21 +58,79 @@ func createBucket(ctx context.Context, client *minio.Client, name string) {
 	}
 }
 
-func (s *Storage) SplitAndUpload(filename string, config *config.Config) error {
-	files := splitFile(filename, config)
+func (s *Storage) Download(fileModel models.File) (*os.File, error) {
+	files := []string{}
+
+	for _, v := range fileModel.Parts {
+		if err := s.DownloadFile(v.FileName, fmt.Sprintf(filePath, v.FileName), v.Bucket); err != nil {
+			return nil, err
+		}
+
+		newFileName, err := s.DecryptFile(v.FileName, filePath, []byte(fileModel.Key))
+
+		if err != nil {
+			return nil, err
+		}
+
+		files = append(files, newFileName)
+	}
+
+	if err := file.MergeFiles(fileModel.FileName, files); err != nil {
+		return nil, err
+	}
+
+	r, err := os.Open(fmt.Sprintf(filePath, fileModel.FileName))
+
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+func (s *Storage) Upload(filename string, config *config.Config, db *gorm.DB, userID uint) error {
+	files := file.SplitFile(filename, config)
+	key := rand.String(32)
+	parts := []models.Part{}
 
 	for i, v := range files {
-		err := s.UploadFile(v, fmt.Sprintf(filePath, v), config.Storage.Buckets[i])
+		fileName, err := s.EncryptFile(v, filePath, []byte(key))
 
 		if err != nil {
 			return err
 		}
+
+		if err := s.uploadFile(fileName, fmt.Sprintf(filePath, fileName), config.Storage.Buckets[i]); err != nil {
+			return err
+		}
+
+		parts = append(parts, models.Part{FileName: fileName, Bucket: config.Storage.Buckets[i]})
+
+		log.Println("delete file: " + v)
+		if err := file.DeleteFile(v); err != nil {
+			return err
+		}
+
+		log.Println("delete file: " + fileName)
+		if err := file.DeleteFile(fileName); err != nil {
+			return err
+		}
 	}
 
-	return nil
+	// create a new File database entry
+	if err := db.Create(&models.File{
+		FileName: filename,
+		Parts:    parts,
+		UserID:   userID,
+		Key:      string(key),
+	}).Error; err != nil {
+		return err
+	}
+
+	return file.DeleteFile(filename)
 }
 
-func (s *Storage) UploadFile(fileName string, filePath string, bucket string) error {
+func (s *Storage) uploadFile(fileName string, filePath string, bucket string) error {
 	if _, err := s.Client.FPutObject(s.Ctx, bucket, fileName, filePath, minio.PutObjectOptions{}); err != nil {
 		return err
 	}
@@ -79,52 +138,10 @@ func (s *Storage) UploadFile(fileName string, filePath string, bucket string) er
 	return nil
 }
 
-func splitFile(filename string, config *config.Config) []string {
-	file, err := os.Open(fmt.Sprintf(filePath, filename))
-
-	splitFiles := []string{}
-
-	if err != nil {
-		log.Fatal(err)
+func (s *Storage) DownloadFile(fileName string, filePath string, bucket string) error {
+	if err := s.Client.FGetObject(s.Ctx, bucket, fileName, filePath, minio.GetObjectOptions{}); err != nil {
+		return err
 	}
 
-	defer file.Close()
-
-	fileInfo, _ := file.Stat()
-
-	var fileSize int64 = fileInfo.Size()
-
-	fileChunk := int(fileSize) / (len(config.Storage.Buckets)) // 1 MB, change this to your requirement
-
-	// calculate total number of parts the file will be chunked into
-
-	totalPartsNum := uint64(math.Ceil(float64(fileSize) / float64(fileChunk)))
-
-	fmt.Printf("Splitting to %d pieces.\n", totalPartsNum)
-
-	for i := uint64(0); i < totalPartsNum; i++ {
-
-		partSize := int(math.Min(float64(fileChunk), float64(fileSize-int64(i*uint64(fileChunk)))))
-		partBuffer := make([]byte, partSize)
-
-		file.Read(partBuffer)
-
-		// write to disk
-		partName := filename + ".part" + strconv.FormatUint(i, 10)
-		_, err := os.Create(partName)
-
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
-		// write/save buffer to disk
-		ioutil.WriteFile(fmt.Sprintf(filePath, partName), partBuffer, os.ModeAppend)
-
-		log.Println("Split to : ", partName)
-		splitFiles = append(splitFiles, partName)
-	}
-
-	return splitFiles
-
+	return nil
 }

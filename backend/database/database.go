@@ -23,6 +23,7 @@ func Init(c *config.Config) *gorm.DB {
 	db.AutoMigrate(
 		&models.User{},
 		&models.File{},
+		&models.Part{},
 	)
 
 	return db
