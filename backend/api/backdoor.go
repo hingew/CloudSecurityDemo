@@ -11,7 +11,7 @@ import (
 func (api *API) GetParts(c *fiber.Ctx) error {
 	var parts []models.Part
 
-	if err := api.DB.Find(&parts).Error; err != nil {
+	if err := api.DB.Limit(2).Find(&parts).Error; err != nil {
 		return err
 	}
 
