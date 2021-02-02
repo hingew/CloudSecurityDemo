@@ -75,6 +75,8 @@ func (s *Storage) DecryptFile(fileName string, filePath string, key []byte) (str
 	stream.XORKeyStream(ciphertext, ciphertext)
 	f, err := os.Create(fmt.Sprintf(filePath, newFileName))
 
+	defer f.Close()
+
 	if err != nil {
 		return "", err
 	}
